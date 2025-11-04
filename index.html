@@ -20,7 +20,12 @@
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; position: relative;
       background: #fff; font-size: 0.8em;
-     -self: center; flex-shrink: 0; }
+      flex-shrink: 0;
+    }
+    .selected-in, .selected-out {
+      background: #222; color: #fff;
+    }
+    .resistor { font-weight: bold; font-size: 0.7em; align-self: center; flex-shrink: 0; }
     #result { margin-top: 10px; font-size: 0.9em; text-align: center; }
     #reset {
       display: block; margin: 10px auto;
