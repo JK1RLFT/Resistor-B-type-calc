@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>抵抗合成計算機</title>
+  <style>
+    body { font-family: sans-serif; }
+    .container { display: flex; align-items: center; margin: 40px; }
+    .terminal {
+      width: 40px; height: 40px;
+      border: 2px solid #333; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 10px; cursor: pointer; position: relative;
+      box-sizing: border-box;
+      background: #fff;
+      z-index: 1;
+    }
+    .selected-in { background: #222; color: #fff; }
+    .selected-out { background: #222; color: #fff; }
+    .resistor { margin: 0 10px; font-weight: bold; }
+    #result { margin-top: 30px; font-size: 1.2em; }
+    #reset { margin-left: 30px; padding: 10px 20px; font-size: 1em; }
+    .ui-area { position: relative; height: 100px; }
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h2>抵抗合成計算機</h2>
+  <div class="ui-area">
+    <div class="container" id="terminals">
+      <div class="terminal" data-id="A">A</div>
+      <span class="resistor">0.5Ω</span>
+      <div class="terminal" data-id="B">B</div>
+      <span class="resistor">1Ω</span>
+      <div class="terminal" data-id="C">C</div>
+      <span class="resistor">2Ω</span>
+      <div class="terminal" data-id="D">D</div>
+      <span class="resistor">0.5Ω</span>
+      <div class="terminal" data-id="E">E</div>
+      <button id="reset">リセット</button>
+    </div>
+  </div>
+  <div id="result">合成抵抗: -- Ω</div>
+  <script>
+    const terminals = ['A', 'B', 'C', 'D', 'E'];
+    const resistors = [
+      { from: 'A', to: 'B', value: 0.5 },
+      { from: 'B', to: 'C', value: 1 },
+      { from: 'C', to: 'D', value: 2 },
+      { from: 'D', to: 'E', value: 0.5 }
+    ];
+    const jumperColors = ['#2196f3', '#ffeb3b', '#4caf50'];
+    const roles = [
+      'in', 'out',
+      'jumper1a', 'jumper1b',
+      'jumper2a', 'jumper2b',
+      'jumper3a', 'jumper3b'
+    ];
+    let selections = [];
+    let jumpers = [[], [], []];
+    let inTerm = null, outTerm = null;
+
+    // 輪の描画（端子の中心にピッタリ重ねる）
+    function updateRings() {
+      document.querySelectorAll('.terminal').forEach(btn => {
+        btn.querySelectorAll('.ring').forEach(ring => ring.remove());
+        let rings = [];
+        jumpers.forEach((pair, i) => {
+          if (pair.includes(btn.dataset.id)) {
+            rings.push(jumperColors[i]);
+          }
+        });
+        rings.forEach((color, idx) => {
+          const ring = document.createElement('div');
+          ring.className = 'ring';
+          const baseSize = 40; // 端子の円のサイズ
+          const borderWidth = 3; // 輪の太さ
+          const size = baseSize + 2 * borderWidth * (idx + 1);
+          // 端子の中心とリングの中心が一致するように配置
+          ring.style.width = `${size}px`;
+          ring.style.height = `${size}px`;
+          ring.style.left = `${-(size - baseSize) / 2}px`;
+          ring.style.top = `${-(size - baseSize) / 2}px`;
+          ring.style.border = `${borderWidth}px solid ${color}`;
+          ring.style.zIndex = 0;
+          btn.appendChild(ring);
+        });
+      });
+    }
+
+    document.querySelectorAll('.terminal').forEach(btn => {
+      btn.onclick = () => {
+        if (selections.length >= roles.length) return;
+        const id = btn.dataset.id;
+        selections.push(id);
+        if (selections.length === 1) { btn.classList.add('selected-in'); inTerm = id; }
+        else if (selections.length === 2) { btn.classList.add('selected-out'); outTerm = id; }
+        else if (selections.length <= 4) { btn.classList.add('selected-jumper1'); jumpers[0].push(id); }
+        else if (selections.length <= 6) { btn.classList.add('selected-jumper2'); jumpers[1].push(id); }
+        else if (selections.length <= 8) { btn.classList.add('selected-jumper3'); jumpers[2].push(id); }
+        updateRings();
+        showResistance();
+      };
+    });
+
+    // ノード電圧法による合成抵抗計算
+    function showResistance() {
+      if (!inTerm || !outTerm) {
+        document.getElementById('result').textContent = '合成抵抗: -- Ω';
+        return;
+      }
+      const nodes = terminals;
+      let edges = [...resistors];
+      jumpers.forEach(pair => {
+        if (pair.length === 2) {
+          edges.push({ from: pair[0], to: pair[1], value: 0 });
+        }
+      });
+
+      let nodeIndex = {};
+      let idx = 0;
+      nodes.forEach(n => {
+        if (n !== inTerm && n !== outTerm) {
+          nodeIndex[n] = idx++;
+        }
+      });
+      const N = idx;
+      let A = Array(N).fill(0).map(()=>Array(N).fill(0));
+      let b = Array(N).fill(0);
+
+      nodes.forEach(n1 => {
+        if (n1 === inTerm || n1 === outTerm) return;
+        let row = nodeIndex[n1];
+        edges.forEach(e => {
+          let n2 = (e.from === n1) ? e.to : (e.to === n1 ? e.from : null);
+          if (!n2) return;
+          let conductance = 1 / e.value;
+          if (e.value === 0) conductance = 1e12;
+          if (n2 === inTerm) {
+            b[row] += conductance * 1;
+            A[row][row] += conductance;
+          } else if (n2 === outTerm) {
+            A[row][row] += conductance;
+          } else {
+            A[row][row] += conductance;
+            A[row][nodeIndex[n2]] -= conductance;
+          }
+        });
+      });
+
+      function solveLinear(A, b) {
+        let n = b.length;
+        let x = Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+          let maxRow = i;
+          for (let k = i+1; k < n; k++) {
+            if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+          }
+          [A[i], A[maxRow]] = [A[maxRow], A[i]];
+          [b[i], b[maxRow]] = [b[maxRow], b[i]];
+          for (let k = i+1; k < n; k++) {
+            let c = A[k][i] / A[i][i];
+            for (let j = i; j < n; j++) A[k][j] -= c * A[i][j];
+            b[k] -= c * b[i];
+          }
+        }
+        for (let i = n-1; i >= 0; i--) {
+          let sum = b[i];
+          for (let j = i+1; j < n; j++) sum -= A[i][j] * x[j];
+          x[i] = sum / A[i][i];
+        }
+        return x;
+      }
+
+      let V = solveLinear(A, b);
+      let voltages = {};
+      nodes.forEach(n => {
+        if (n === inTerm) voltages[n] = 1;
+        else if (n === outTerm) voltages[n] = 0;
+        else voltages[n] = V[nodeIndex[n]];
+      });
+
+      let Iin = 0;
+      edges.forEach(e => {
+        if (e.from === inTerm) {
+          let v2 = voltages[e.to];
+          let conductance = 1 / e.value;
+          if (e.value === 0) conductance = 1e12;
+          Iin += (voltages[inTerm] - v2) * conductance;
+        } else if (e.to === inTerm) {
+          let v2 = voltages[e.from];
+          let conductance = 1 / e.value;
+          if (e.value === 0) conductance = 1e12;
+          Iin += (voltages[inTerm] - v2) * conductance;
+        }
+      });
+      let resistance = 1 / Iin;
+      document.getElementById('result').textContent = `合成抵抗: ${resistance.toFixed(3)} Ω`;
+    }
+
+    document.getElementById('reset').onclick = () => {
+      selections = [];
+      jumpers = [[], [], []];
+      inTerm = null; outTerm = null;
+      document.querySelectorAll('.terminal').forEach(btn => {
+        btn.classList.remove('selected-in', 'selected-out', 'selected-jumper1', 'selected-jumper2', 'selected-jumper3');
+        btn.querySelectorAll('.ring').forEach(ring => ring.remove());
+      });
+      document.getElementById('result').textContent = '合成抵抗: -- Ω';
+    };
+  </script>
+</body>
+</html>
