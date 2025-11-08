@@ -180,7 +180,9 @@
         }
       });
       let resistance = 1 / Iin;
-      document.getElementById('result').textContent = `合成抵抗: ${resistance.toFixed(5)} Ω`;
+      let resistance = 1 / Iin; // 高精度で計算（小数第5位以上）
+      let rounded = Math.round(resistance * 10000) / 10000; // 小数第4位で四捨五入
+      document.getElementById('result').textContent = `合成抵抗: ${rounded.toFixed(4)} Ω`;
     }
 
     document.getElementById('reset').onclick = () => {
