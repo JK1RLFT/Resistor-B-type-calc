@@ -92,8 +92,8 @@
           const size = baseSize + 2 * borderWidth * (idx + 1);
           ring.style.width = `${size}px`;
           ring.style.height = `${size}px`;
-          ring.style.left = `${-(size - baseSize) / 2}px`;
-          ring.style.top = `${-(size - baseSize) / 2}px`;
+          ring.style.left = `${-(size - baseSize) / 2-2}px`;
+          ring.style.top = `${-(size - baseSize) / 2-2}px`;
           ring.style.border = `${borderWidth}px solid ${color}`;
           btn.appendChild(ring);
         });
