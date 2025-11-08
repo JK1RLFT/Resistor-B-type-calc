@@ -180,6 +180,7 @@
         }
       });
       let resistance = 1 / Iin;
+      if (!isFinite(resistance) || Math.abs(resistance) > 1e6) {resistance = 0;}
       document.getElementById('result').textContent = `合成抵抗: ${resistance.toFixed(3)} Ω`;
     }
 
