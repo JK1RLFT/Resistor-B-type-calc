@@ -180,7 +180,7 @@
         }
       });
       let resistance = 1 / Iin;
-      let rounded = Math.round(resistance * 1000) / 1000;document.getElementById('result').textContent = `合成抵抗: ${rounded.toFixed(3)} Ω`;
+      document.getElementById('result').textContent = `合成抵抗: ${resistance.toFixed(5)} Ω`;
     }
 
     document.getElementById('reset').onclick = () => {
